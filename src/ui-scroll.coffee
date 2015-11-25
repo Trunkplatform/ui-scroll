@@ -446,9 +446,10 @@ angular.module('ui.scroll', [])
 						else
 							#log "appending... requested #{bufferSize} records starting from #{next}"
 							datasource.get next, bufferSize,
-							(result) ->
+							(result, done) ->
 								return if (rid and rid isnt ridActual) or $scope.$$destroyed
-								if result.length < bufferSize
+								eofReached = if done? then done else result.length < bufferSize
+								if eofReached
 									eof = true
 									viewport.bottomPadding(0)
 									#log 'eof is reached'
@@ -465,9 +466,10 @@ angular.module('ui.scroll', [])
 						else
 							#log "prepending... requested #{size} records starting from #{start}"
 							datasource.get first-bufferSize, bufferSize,
-							(result) ->
+							(result, done) ->
 								return if (rid and rid isnt ridActual) or $scope.$$destroyed
-								if result.length < bufferSize
+								bofReached = if done? then done else result.length < bufferSize
+								if bofReached
 									bof = true
 									viewport.topPadding(0)
 									#log 'bof is reached'
