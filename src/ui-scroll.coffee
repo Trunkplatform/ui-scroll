@@ -69,7 +69,7 @@ angular.module('ui.scroll', [])
 						wrapper.scope.$destroy()
 					]
 
-		Buffer = (itemName, $scope, linker)->
+		Buffer = (itemName, $scope, linker, uniqueFunc)->
 
 			buffer = Object.create Array.prototype
 
@@ -82,6 +82,10 @@ angular.module('ui.scroll', [])
 				itemScope[itemName] = item
 				wrapper =
 					scope: itemScope
+
+				if angular.isFunction(uniqueFunc) &&
+					 buffer.map( (el) -> return el.scope[itemName]).map(uniqueFunc).indexOf(uniqueFunc(item)) >= 0
+					return
 
 				linker itemScope, (clone) ->
 					wrapper.element = clone
@@ -196,13 +200,16 @@ angular.module('ui.scroll', [])
 				bufferSize = Math.max(3, +$attr.bufferSize || 10)
 				bufferPadding = -> viewport.outerHeight() * Math.max(0.1, +$attr.padding || 0.1) # some extra space to initiate preload
 
+				if $attr.uniqueBy
+					uniqueFunc = $parse($attr.uniqueBy)($scope)
+
 				# initial settings
 
 				builder = null
 				ridActual = 0 # current data revision id
 				first = 1
 				next = 1
-				buffer = new Buffer(itemName, $scope, linker)
+				buffer = new Buffer(itemName, $scope, linker, uniqueFunc)
 				pending = []
 				eof = false
 				bof = false
