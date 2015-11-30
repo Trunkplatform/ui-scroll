@@ -1,7 +1,7 @@
 /*!
  * angular-ui-scroll
  * https://github.com/angular-ui/ui-scroll.git
- * Version: 1.3.2 -- 2015-11-25T00:45:50.813Z
+ * Version: 1.3.2 -- 2015-11-30T04:16:09.699Z
  * License: MIT
  */
  
@@ -82,7 +82,7 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
         };
       }
     }
-    Buffer = function(itemName, $scope, linker) {
+    Buffer = function(itemName, $scope, linker, uniqueFunc) {
       var buffer;
       buffer = Object.create(Array.prototype);
       buffer.insert = function(operation, item) {
@@ -92,6 +92,11 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
         wrapper = {
           scope: itemScope
         };
+        if (angular.isFunction(uniqueFunc) && buffer.map(function(el) {
+          return el.scope[itemName];
+        }).map(uniqueFunc).indexOf(uniqueFunc(item)) >= 0) {
+          return;
+        }
         linker(itemScope, function(clone) {
           return wrapper.element = clone;
         });
@@ -200,11 +205,11 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
         itemName = match[1];
         datasourceName = match[2];
         return function($scope, element, $attr, controllers, linker) {
-          var adapter, adapterOnScope, adjustBuffer, adjustBufferAfterFetch, applyUpdate, bof, buffer, bufferPadding, bufferSize, builder, calculateTopProperties, clipBottom, clipTop, datasource, dismissPendingRequests, enqueueFetch, eof, eventListener, fetch, first, insertWrapperContent, isDatasourceValid, isElementVisible, loading, next, pending, processBufferedItems, reloadImpl, resizeAndScrollHandler, ridActual, shouldLoadBottom, shouldLoadTop, topVisible, unsupportedMethod, viewport, viewportScope, visibilityWatcher, wheelHandler;
+          var adapter, adapterOnScope, adjustBuffer, adjustBufferAfterFetch, applyUpdate, bof, buffer, bufferPadding, bufferSize, builder, calculateTopProperties, clipBottom, clipTop, datasource, dismissPendingRequests, enqueueFetch, eof, eventListener, fetch, first, insertWrapperContent, isDatasourceValid, isElementVisible, loading, next, pending, processBufferedItems, reloadImpl, resizeAndScrollHandler, ridActual, shouldLoadBottom, shouldLoadTop, topVisible, uniqueFunc, unsupportedMethod, unwrap, viewport, viewportScope, visibilityWatcher, wheelHandler;
           linker = linker || compileLinker;
           datasource = $parse(datasourceName)($scope);
           isDatasourceValid = function() {
-            return angular.isObject(datasource) && angular.isFunction(datasource.get);
+            return angular.isObject(datasource) && (angular.isFunction(datasource.get) || (angular.isFunction(datasource.getElementsBefore) && angular.isFunction(datasource.getElementsAfter)));
           };
           if (!isDatasourceValid()) {
             datasource = $injector.get(datasourceName);
@@ -216,11 +221,14 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
           bufferPadding = function() {
             return viewport.outerHeight() * Math.max(0.1, +$attr.padding || 0.1);
           };
+          if ($attr.uniqueBy) {
+            uniqueFunc = $parse($attr.uniqueBy)($scope);
+          }
           builder = null;
           ridActual = 0;
           first = 1;
           next = 1;
-          buffer = new Buffer(itemName, $scope, linker);
+          buffer = new Buffer(itemName, $scope, linker, uniqueFunc);
           pending = [];
           eof = false;
           bof = false;
@@ -500,18 +508,26 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
               }
             });
           };
+          unwrap = function(wrapped_elem) {
+            if (wrapped_elem != null) {
+              return wrapped_elem.scope[itemName];
+            } else {
+              return void 0;
+            }
+          };
           fetch = function(rid) {
+            var firstElement, lastElement;
             if (pending[0]) {
               if (buffer.length && !shouldLoadBottom()) {
                 return adjustBufferAfterFetch(rid);
               } else {
-                return datasource.get(next, bufferSize, function(result, done) {
-                  var eofReached, item, j, len;
+                lastElement = unwrap(buffer[buffer.length - 1]);
+                return datasource.getElementsAfter(lastElement, bufferSize, function(result) {
+                  var item, j, len;
                   if ((rid && rid !== ridActual) || $scope.$$destroyed) {
                     return;
                   }
-                  eofReached = done != null ? done : result.length < bufferSize;
-                  if (eofReached) {
+                  if (result.length < bufferSize) {
                     eof = true;
                     viewport.bottomPadding(0);
                   }
@@ -530,13 +546,13 @@ angular.module('ui.scroll', []).directive('uiScrollViewport', function() {
               if (buffer.length && !shouldLoadTop()) {
                 return adjustBufferAfterFetch(rid);
               } else {
-                return datasource.get(first - bufferSize, bufferSize, function(result, done) {
-                  var bofReached, i, j, ref;
+                firstElement = unwrap(buffer[0]);
+                return datasource.getElementsBefore(firstElement, bufferSize, function(result) {
+                  var i, j, ref;
                   if ((rid && rid !== ridActual) || $scope.$$destroyed) {
                     return;
                   }
-                  bofReached = done != null ? done : result.length < bufferSize;
-                  if (bofReached) {
+                  if (result.length < bufferSize) {
                     bof = true;
                     viewport.topPadding(0);
                   }

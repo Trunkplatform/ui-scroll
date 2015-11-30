@@ -1,7 +1,7 @@
 /*!
  * angular-ui-scroll
  * https://github.com/angular-ui/ui-scroll.git
- * Version: 1.3.2 -- 2015-11-25T00:45:50.813Z
+ * Version: 1.3.2 -- 2015-11-30T04:16:09.699Z
  * License: MIT
  */
  
