@@ -191,7 +191,8 @@ angular.module('ui.scroll', [])
 				linker = linker || compileLinker
 
 				datasource = $parse(datasourceName)($scope)
-				isDatasourceValid = () -> angular.isObject(datasource) and angular.isFunction(datasource.get)
+				isDatasourceValid = () -> angular.isObject(datasource) and (angular.isFunction(datasource.get) or
+					(angular.isFunction(datasource.getElementsBefore) and angular.isFunction(datasource.getElementsAfter)))
 				if !isDatasourceValid() # then try to inject datasource as service
 					datasource = $injector.get(datasourceName)
 					if !isDatasourceValid()
@@ -445,6 +446,9 @@ angular.module('ui.scroll', [])
 						else
 							fetch(rid)
 
+				unwrap = (wrapped_elem) ->
+					if wrapped_elem? then wrapped_elem.scope[itemName] else undefined
+
 				fetch = (rid) ->
 					#log "Running fetch... #{{true:'bottom', false: 'top'}[direction]} pending #{pending.length}"
 					if pending[0] # scrolling down
@@ -452,11 +456,11 @@ angular.module('ui.scroll', [])
 							adjustBufferAfterFetch rid
 						else
 							#log "appending... requested #{bufferSize} records starting from #{next}"
-							datasource.get next, bufferSize,
-							(result, done) ->
+							lastElement = unwrap(buffer[buffer.length - 1])
+							datasource.getElementsAfter lastElement, bufferSize,
+							(result) ->
 								return if (rid and rid isnt ridActual) or $scope.$$destroyed
-								eofReached = if done? then done else result.length < bufferSize
-								if eofReached
+								if result.length < bufferSize
 									eof = true
 									viewport.bottomPadding(0)
 									#log 'eof is reached'
@@ -472,11 +476,11 @@ angular.module('ui.scroll', [])
 							adjustBufferAfterFetch rid
 						else
 							#log "prepending... requested #{size} records starting from #{start}"
-							datasource.get first-bufferSize, bufferSize,
-							(result, done) ->
+							firstElement = unwrap(buffer[0])
+							datasource.getElementsBefore firstElement, bufferSize,
+							(result) ->
 								return if (rid and rid isnt ridActual) or $scope.$$destroyed
-								bofReached = if done? then done else result.length < bufferSize
-								if bofReached
+								if result.length < bufferSize
 									bof = true
 									viewport.topPadding(0)
 									#log 'bof is reached'
